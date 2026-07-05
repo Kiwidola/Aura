@@ -10,8 +10,8 @@ st.set_page_config(page_title="Air Quality Monitor", layout="wide")
 # 2. LOAD YOUR MODEL
 @st.cache_resource
 def load_model():
-    # Updated path to include the 'model' folder
-    model_filename = os.path.join('model', 'rf_model_new.joblib') 
+    # Updated to point to the 'models' folder (plural)
+    model_filename = os.path.join('models', 'rf_model_new.joblib') 
     if not os.path.exists(model_filename):
         st.error(f"Error: The file '{model_filename}' was not found. Please check the folder path.")
         st.stop()
@@ -69,4 +69,4 @@ with col1:
 
 with col2:
     st.subheader("System Status")
-    st.write("Monitoring active. Using model from: model/rf_model_new.joblib")
+    st.write("Monitoring active. Using model from: models/rf_model_new.joblib")
