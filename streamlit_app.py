@@ -1,136 +1,69 @@
-#include <WiFi.h>
-#include <WiFiClientSecure.h>
-#include <HTTPClient.h>
-#include <Wire.h>
-#include <time.h>
-#include "ScioSense_ENS160.h"
-#include <Adafruit_AHTX0.h>
+import streamlit as st
+import pandas as pd
+import numpy as np
+import joblib
 
-/******** WIFI ********/
-const char* ssid = "RBM_2.4GHz";
-const char* password = "12112111";
+# 1. PAGE CONFIGURATION
+st.set_page_config(page_title="Air Quality Monitor", layout="wide")
 
-/******** GOOGLE SHEET ********/
-String GOOGLE_SCRIPT_ID = "AKfycbzS--H3jr-Dv4RLTXycEuvVX5lHAVGpeLk7yYb220mwcXGL9gNV_lVcy8XKKgrFLgPumA";
+# 2. LOAD YOUR MODEL
+# Ensure your model file is in the same directory as this script
+@st.cache_resource
+def load_model():
+    return joblib.load('your_model.pkl') # Replace with your actual model filename
 
-/******** PINS ********/
-#define MQ135_PIN 34
-#define MQ7_PIN   35
-#define FAN_PIN   27
-#define RX2_PIN   16
-#define TX2_PIN   17
+model = load_model()
 
-/******** SENSORS ********/
-ScioSense_ENS160 ens160(ENS160_I2CADDR_1);
-Adafruit_AHTX0 aht;
-
-/******** VARIABLES ********/
-float TVOC = 0;
-float eCO2 = 0;
-uint32_t rawR1_Ohm = 0;
-uint32_t rawR4_Ohm = 0;
-int rawMQ135 = 0;
-int rawMQ7 = 0; 
-float pm25 = 0;
-float pm10 = 0;
-float temp = 0.0;
-float hum = 0.0; 
-
-/******** LOCATION ********/
-float latitude = 18.761778;
-float longitude = 98.973028;
-
-int lastMinuteExecuted = -1;
-
-void setup() {
-  Serial.begin(115200);
-  pinMode(FAN_PIN, OUTPUT);
-  digitalWrite(FAN_PIN, LOW);
-  pinMode(MQ135_PIN, INPUT);
-  pinMode(MQ7_PIN, INPUT);
-  Serial2.begin(9600, SERIAL_8N1, RX2_PIN, TX2_PIN);
-  Wire.begin(21, 22);
-
-  if (!aht.begin()) Serial.println("Could not find AHT sensor!");
-  ens160.begin();
-  if (ens160.available()) ens160.setMode(ENS160_OPMODE_STD);
-
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
-  configTime(7 * 3600, 0, "pool.ntp.org");
-}
-
-void loop() {
-  readSDS011();
-  struct tm timeinfo;
-  if (getLocalTime(&timeinfo) && (timeinfo.tm_min % 5 == 0) && timeinfo.tm_sec == 0 && timeinfo.tm_min != lastMinuteExecuted) {
-    lastMinuteExecuted = timeinfo.tm_min;
-    runCycle();
-  }
-  delay(500);
-}
-
-void runCycle() {
-  digitalWrite(FAN_PIN, HIGH);
-  delay(10000);
-  digitalWrite(FAN_PIN, LOW);
-  readSensors();
-  sendDataToGoogleSheets();
-}
-
-void readSensors() {
-  sensors_event_t humidity, temperature;
-  if (aht.getEvent(&humidity, &temperature)) {
-    temp = temperature.temperature;
-    hum = humidity.relative_humidity;
-  }
-  if (ens160.available()) {
-    ens160.measure(true);
-    TVOC = ens160.getTVOC();
-    eCO2 = ens160.geteCO2();
-    rawR1_Ohm = ens160.getHP0();
-    rawR4_Ohm = ens160.getHP3();
-  }
-  rawMQ135 = analogRead(MQ135_PIN);
-  rawMQ7 = analogRead(MQ7_PIN);
-}
-
-void readSDS011() {
-  static uint8_t buffer[10], idx = 0;
-  while (Serial2.available()) {
-    uint8_t val = Serial2.read();
-    if (idx == 0 && val != 0xAA) continue;
-    if (idx == 1 && val != 0xC0) { idx = 0; continue; }
-    buffer[idx++] = val;
-    if (idx == 10) {
-      uint8_t checksum = 0;
-      for (int i = 2; i < 8; i++) checksum += buffer[i];
-      if (checksum == buffer[8]) {
-        pm25 = ((buffer[3] << 8) + buffer[2]) / 10.0;
-        pm10 = ((buffer[5] << 8) + buffer[4]) / 10.0;
-      }
-      idx = 0;
+# 3. DATA ACQUISITION
+# Fetching the latest data (Replace with your actual Google Sheet API call or CSV source)
+@st.cache_data(ttl=300)
+def get_latest_data():
+    # Placeholder: Replace with your actual logic to fetch the latest row from Google Sheets
+    # Example: df = pd.read_csv("https://docs.google.com/spreadsheets/d/...")
+    # For now, we simulate the structure:
+    return {
+        'tvoc': 38, 'eco2': 433, 'temp': 28.9, 'hum': 49.2, 
+        'mq135': 1040, 'mq7': 1223, 'pm25': 0, 'pm10': 0
     }
-  }
-}
 
-void sendDataToGoogleSheets() {
-  if (WiFi.status() != WL_CONNECTED) return;
-  WiFiClientSecure client;
-  client.setInsecure();
-  HTTPClient http;
+data = get_latest_data()
 
-  // Reverted to 7 features to match your model's requirement
-  String url = "https://script.google.com/macros/s/" + GOOGLE_SCRIPT_ID + "/exec?" +
-               "tvoc=" + String(TVOC) +
-               "&eco2=" + String(eCO2) +
-               "&temp=" + String(temp, 1) +
-               "&hum=" + String(hum, 1) +
-               "&mq135=" + String(rawMQ135) +
-               "&mq7=" + String(rawMQ7) +
-               "&pm25=" + String(pm25);
+# 4. PREDICTION LOGIC
+def predict_quality(d):
+    # PREPARE FEATURES: Must be in the EXACT order used during training (8 features)
+    # Order: TVOC, eCO2, Temp, Hum, MQ135, MQ7, PM2.5, PM10
+    features = [
+        float(d['tvoc']), 
+        float(d['eco2']), 
+        float(d['temp']), 
+        float(d['hum']), 
+        float(d['mq135']), 
+        float(d['mq7']), 
+        float(d['pm25']), 
+        float(d['pm10'])
+    ]
+    
+    # Reshape for the model
+    input_data = np.array(features).reshape(1, -1)
+    
+    # Perform prediction
+    prediction = model.predict(input_data)
+    return prediction[0]
 
-  http.begin(client, url);
-  http.GET();
-  http.end();
-}
+# 5. UI DISPLAY
+st.title("Air Quality Intelligence Dashboard")
+
+col1, col2 = st.columns([1, 2])
+
+with col1:
+    st.subheader("Latest Sensor Readings")
+    st.write(pd.DataFrame([data]))
+    
+    if st.button("Analyze Air Quality"):
+        result = predict_quality(data)
+        st.success(f"Model Prediction: {result}")
+
+with col2:
+    st.subheader("System Status")
+    st.write("Monitoring active. Data refreshing every 5 minutes.")
+    # Add charts or other visual elements here
