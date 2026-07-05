@@ -120,20 +120,15 @@ void sendDataToGoogleSheets() {
   client.setInsecure();
   HTTPClient http;
 
-  // The order here matches the columns in "image_0c11e0.png"
+  // Reverted to 7 features to match your model's requirement
   String url = "https://script.google.com/macros/s/" + GOOGLE_SCRIPT_ID + "/exec?" +
                "tvoc=" + String(TVOC) +
                "&eco2=" + String(eCO2) +
                "&temp=" + String(temp, 1) +
                "&hum=" + String(hum, 1) +
-               "&hp0=" + String(rawR1_Ohm) +
-               "&hp3=" + String(rawR4_Ohm) +
                "&mq135=" + String(rawMQ135) +
                "&mq7=" + String(rawMQ7) +
-               "&pm25=" + String(pm25) +
-               "&pm10=" + String(pm10) +
-               "&lat=" + String(latitude, 6) +
-               "&lon=" + String(longitude, 6);
+               "&pm25=" + String(pm25);
 
   http.begin(client, url);
   http.GET();
