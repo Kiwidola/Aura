@@ -15,17 +15,11 @@ SHEET_URL   = (
     "/pub?output=csv"
 )
 
-# Updated to match the ESP32 location in your data
-BASE_LAT    = 18.761778
-BASE_LON    = 98.973028
+# How many hours of history to show in the charts
 HOURS_BACK  = 24
 
-# Updated to match your NEW model inputs (assuming you retrain it)
+# Features your model expects
 FEATURE_COLS = ["TVOC", "HP0", "HP3", "MQ135", "MQ7", "PM2.5", "PM10"]
-MAPPING_DICT = {
-    "TVOC": "col_2", "HP0": "col_3", "HP3": "col_4", "MQ135": "col_5",
-    "MQ7": "col_6", "PM2.5": "col_7", "PM10": "col_8"
-}
 
 # Robust renaming to catch both raw lowercase and Google Sheets headers
 COLUMN_RENAME = {
@@ -185,29 +179,11 @@ h1, h2, h3, h4 { color: #e6edf3; letter-spacing: -0.3px; }
 .qs-label { font-size: 0.65rem; font-weight: 600; color: #6e7681; margin-bottom: 4px; }
 .qs-value { font-size: 1.05rem; font-weight: 700; color: #e6edf3; }
 
-/* ── Node cards & Maps ── */
-.node-card {
-    background: #0d1117;
-    border: 1px solid #21262d;
-    border-radius: 10px;
-    padding: 10px 14px;
-    margin-bottom: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.83rem;
-    color: #8b949e;
-}
-.pill-red   { color:#ffa198; font-weight:700; }
-.pill-green { color:#56d364; font-weight:700; }
-.pill-dot-red   { display:inline-block; width:7px; height:7px; border-radius:50%; background:#f85149; margin-right:5px; }
-.pill-dot-green { display:inline-block; width:7px; height:7px; border-radius:50%; background:#3fb950; margin-right:5px; }
+/* ── Map visual elements ── */
 .map-legend { display:flex; gap:16px; margin-top:10px; font-size:0.78rem; color:#6e7681; flex-wrap:wrap; }
 .legend-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; vertical-align:middle; }
 .heatmap-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .heatmap-inner { display:flex; gap:3px; min-width: 480px; }
-hr { border-color:#21262d; }
-p, li { color:#8b949e; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -244,8 +220,6 @@ def load_sensor_data():
             df = df.dropna(subset=["Display_Time"]).sort_values("Sort_Time", ascending=False)
             
         # ⚠️ MODEL COMPATIBILITY LAYER
-        # If your model hasn't been retrained on the new columns, this prevents the app from crashing 
-        # by supplying dummy values for the missing data the old model still expects.
         if "eCO2" not in df.columns: df["eCO2"] = 400.0
         if "Temp" not in df.columns: df["Temp"] = 25.0
         if "Humidity" not in df.columns: df["Humidity"] = 50.0
@@ -272,15 +246,11 @@ previous = df.iloc[1] if len(df) > 1 else latest
 prediction   = None
 confidence   = None
 
-# We must ensure we only pass the columns the model was trained on. 
-# If your model expects the OLD columns, update FEATURE_COLS at the top of the script.
 try:
-    # Use the features explicitly defined at the top
     available_features = [col for col in FEATURE_COLS if col in df.columns]
     all_features = df[available_features]
     
     if my_model:
-        # Just passing the raw array to avoid column name mismatch errors with older models
         latest_features = latest[available_features].values.reshape(1, -1)
         prediction = int(my_model.predict(latest_features)[0])
         
@@ -291,23 +261,6 @@ try:
         df["is_vape"] = my_model.predict(all_features.values)
 except Exception as e:
     st.error(f"Prediction error (Model likely expects old data format): {e}")
-
-# ─────────────────────────────────────────────
-# SENSOR DATA (MAP NODES)
-# ─────────────────────────────────────────────
-live_state = 1 if prediction == 1 else 0
-
-mock_sensors = pd.DataFrame({
-    "sensor_id":    ["SN-01", "SN-02", "SN-03", "SN-04"],
-    "location":     ["Main Lobby", "East Restroom", "Breakroom", "Stairwell B"],
-    "lat":          [BASE_LAT + 0.0004, BASE_LAT + 0.0004, BASE_LAT - 0.0005, BASE_LAT + 0.0002],
-    "lon":          [BASE_LON,          BASE_LON - 0.0006,  BASE_LON - 0.0002, BASE_LON + 0.0005],
-    "vape_detected":[live_state, 0, 0, 0],
-})
-mock_sensors["status_text"] = mock_sensors["vape_detected"].map({1: "Vape Detected", 0: "Clean"})
-mock_sensors["fill_r"] = mock_sensors["vape_detected"].map({1: 248, 0: 63})
-mock_sensors["fill_g"] = mock_sensors["vape_detected"].map({1: 81,  0: 185})
-mock_sensors["fill_b"] = mock_sensors["vape_detected"].map({1: 73,  0: 80})
 
 # ─────────────────────────────────────────────
 # HERO CARD
@@ -359,7 +312,6 @@ def fmt_delta(col, inverse=False):
     except Exception:
         return ""
 
-# Updated metrics to match your NEW CSV data structure
 metrics = [
     ("TVOC",     f"{latest.get('TVOC', 0)} ppb",    fmt_delta("TVOC", inverse=True)),
     ("PM 2.5",   f"{latest.get('PM2.5', 0)} μg/m³", fmt_delta("PM2.5", inverse=True)),
@@ -466,72 +418,54 @@ with st.container(border=True):
     else:
         st.markdown("<div style='color:#484f58;font-size:0.85rem'>Model offline — stats unavailable.</div>", unsafe_allow_html=True)
 
-    # ── Hourly Heatmap ──
-    st.markdown("<div style='margin-top:20px'></div>", unsafe_allow_html=True)
-    st.markdown("<div class='eyebrow'>Hourly Detection Heatmap</div>", unsafe_allow_html=True)
-
-    if my_model and "is_vape" in df.columns and not df[df["is_vape"] == 1].empty:
-        heat_df = df.copy()
-        heat_df["hour"] = heat_df["Display_Time"].dt.hour
-        hourly_counts = heat_df[heat_df["is_vape"] == 1].groupby("hour").size()
-        all_hours = pd.Series(0, index=range(24))
-        all_hours.update(hourly_counts)
-        max_count = max(all_hours.max(), 1)
-
-        cells = ""
-        for h in range(24):
-            count     = int(all_hours[h])
-            intensity = count / max_count
-            if intensity == 0:
-                bg, border, txt_color = "#161b22", "#21262d", "#484f58"
-            elif intensity < 0.4:
-                g = int(185 - intensity * 100)
-                bg = f"rgba(63,{g},80,{0.3 + intensity * 0.4:.2f})"
-                border, txt_color = "#3fb950", "#56d364"
-            elif intensity < 0.75:
-                bg = f"rgba(210,153,34,{0.3 + intensity * 0.3:.2f})"
-                border, txt_color = "#d29922", "#e3b341"
-            else:
-                bg = f"rgba(248,81,73,{0.3 + intensity * 0.4:.2f})"
-                border, txt_color = "#f85149", "#ffa198"
-
-            count_disp = str(count) if count > 0 else "·"
-            cells += (
-                f"<div style='display:flex;flex-direction:column;align-items:center;"
-                f"background:{bg};border:1px solid {border};border-radius:6px;"
-                f"padding:6px 4px;flex:1;min-width:16px'>"
-                f"<span style='font-size:0.55rem;color:#6e7681;line-height:1'>{h:02d}</span>"
-                f"<span style='font-size:0.7rem;font-weight:700;color:{txt_color};line-height:1.4'>{count_disp}</span>"
-                f"</div>"
-            )
-
-        st.markdown(
-            f"<div class='heatmap-wrap'><div class='heatmap-inner'>{cells}</div></div>"
-            f"<div style='font-size:0.7rem;color:#484f58;margin-top:6px'>"
-            f"Hour (00–23) · colour = intensity · number = readings</div>",
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            "<div style='color:#484f58;font-size:0.85rem;padding:8px 0'>No detection data to build heatmap.</div>",
-            unsafe_allow_html=True,
-        )
 
 # ─────────────────────────────────────────────
-# FACILITY MAP
+# LIVE GPS SENSOR MAP 
 # ─────────────────────────────────────────────
 with st.container(border=True):
-    st.markdown("<div class='eyebrow'>Facility Sensor Network</div>", unsafe_allow_html=True)
+    st.markdown("<div class='eyebrow'>Live Sensor Location</div>", unsafe_allow_html=True)
+
+    # 1. Extract valid GPS data from the sheet
+    if "Latitude" in df.columns and "Longitude" in df.columns:
+        valid_gps = df.dropna(subset=["Latitude", "Longitude"])
+    else:
+        valid_gps = pd.DataFrame()
+
+    # 2. Get the most recent location, or use a default if none exists yet
+    if not valid_gps.empty:
+        latest_gps = valid_gps.iloc[0]
+        map_lat = float(latest_gps["Latitude"])
+        map_lon = float(latest_gps["Longitude"])
+    else:
+        map_lat = 18.761778  # Default fallback latitude
+        map_lon = 98.973028  # Default fallback longitude
+
+    live_state = 1 if prediction == 1 else 0
+
+    # 3. Create the dataframe specifically for PyDeck
+    map_sensors = pd.DataFrame({
+        "sensor_id":    ["ESP32 Node"],
+        "location":     ["Live Location"],
+        "lat":          [map_lat],
+        "lon":          [map_lon],
+        "vape_detected":[live_state],
+    })
+
+    # Add styling columns for the map dot
+    map_sensors["status_text"] = map_sensors["vape_detected"].map({1: "Vape Detected", 0: "Clean"})
+    map_sensors["fill_r"] = map_sensors["vape_detected"].map({1: 248, 0: 63})
+    map_sensors["fill_g"] = map_sensors["vape_detected"].map({1: 81,  0: 185})
+    map_sensors["fill_b"] = map_sensors["vape_detected"].map({1: 73,  0: 80})
 
     halo_layer = pdk.Layer(
-        "ScatterplotLayer", data=mock_sensors,
+        "ScatterplotLayer", data=map_sensors,
         get_position=["lon", "lat"],
         get_fill_color=["fill_r", "fill_g", "fill_b", 50],
         get_radius=14, radius_units="meters",
         radius_min_pixels=12, radius_max_pixels=24, pickable=False,
     )
     dot_layer = pdk.Layer(
-        "ScatterplotLayer", data=mock_sensors,
+        "ScatterplotLayer", data=map_sensors,
         get_position=["lon", "lat"],
         get_fill_color=["fill_r", "fill_g", "fill_b", 230],
         get_radius=5, radius_units="meters",
@@ -539,14 +473,16 @@ with st.container(border=True):
         pickable=True, stroked=True,
         get_line_color=[255, 255, 255, 80], line_width_min_pixels=1,
     )
-    view_state = pdk.ViewState(latitude=BASE_LAT, longitude=BASE_LON, zoom=17, pitch=0)
+    
+    # Auto-center map on the live coordinates
+    view_state = pdk.ViewState(latitude=map_lat, longitude=map_lon, zoom=17, pitch=0)
 
     st.pydeck_chart(
         pdk.Deck(
             layers=[halo_layer, dot_layer],
             initial_view_state=view_state,
             map_style="dark",
-            tooltip={"text": "{sensor_id} — {location}\nStatus: {status_text}"},
+            tooltip={"text": "{sensor_id} — {location}\nStatus: {status_text}\nLat: {lat}\nLon: {lon}"},
         ),
         height=300,
         use_container_width=True,
@@ -588,25 +524,20 @@ st.markdown(
 
 CHART_H = 260 
 
-# Group 1: Particles (PM2.5, PM10)
 cols_p = [c for c in ["PM2.5", "PM10"] if c in chart_data.columns]
-if "⚠ Vape Event" in chart_data.columns:
-    cols_p.append("⚠ Vape Event")
+if "⚠ Vape Event" in chart_data.columns: cols_p.append("⚠ Vape Event")
 if cols_p:
     with st.container(border=True):
         st.markdown("<div class='eyebrow'>🟤 Particles</div>", unsafe_allow_html=True)
         st.line_chart(chart_data[cols_p], height=CHART_H, use_container_width=True)
 
-# Group 2: Air Quality (TVOC)
 cols_a = [c for c in ["TVOC"] if c in chart_data.columns]
-if "⚠ Vape Event" in chart_data.columns:
-    cols_a.append("⚠ Vape Event")
+if "⚠ Vape Event" in chart_data.columns: cols_a.append("⚠ Vape Event")
 if cols_a:
     with st.container(border=True):
         st.markdown("<div class='eyebrow'>🌫 Air Quality</div>", unsafe_allow_html=True)
         st.line_chart(chart_data[cols_a], height=CHART_H, use_container_width=True)
 
-# Group 3: Raw Sensors (HP0, HP3, MQ135, MQ7)
 cols_r = [c for c in ["HP0", "HP3", "MQ135", "MQ7"] if c in chart_data.columns]
 if cols_r:
     with st.container(border=True):
