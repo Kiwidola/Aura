@@ -11,7 +11,7 @@ MODEL_PATH  = "models/rf_model_unified.joblib"
 MODEL_NAME  = "Aurafarm AI"
 SHEET_URL   = (
     "https://docs.google.com/spreadsheets/d/e/"
-    "2PACX-1vR64ngnHsbGRjyGPpm9HCWe8bylsky-7kAxer6vr-fmVr_JKMHbJwKzPLe8yK5mxYKn3JNFw7KVNIJW/pubhtml"
+    "2PACX-1vR64ngnHsbGRjyGPpm9HCWe8bylsky-7kAxer6vr-fmVr_JKMHbJwKzPLe8yK5mxYKn3JNFw7KVNIJW"
     "/pub?output=csv"
 )
 
