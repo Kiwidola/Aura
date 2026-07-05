@@ -11,22 +11,29 @@ MODEL_PATH  = "models/rf_model_unified.joblib"
 MODEL_NAME  = "Aurafarm AI"
 SHEET_URL   = (
     "https://docs.google.com/spreadsheets/d/e/"
-    "2PACX-1vT8Oho84O3uIYEEYE2iNub7I5Ktv4mTUteMkdBR4NpBTlJZS0tY2VFXmqM-_XlGIgSaeUIR7VjpnWSZ"
+    "2PACX-1vR64ngnHsbGRjyGPpm9HCWe8bylsky-7kAxer6vr-fmVr_JKMHbJwKzPLe8yK5mxYKn3JNFw7KVNIJW/pubhtml"
     "/pub?output=csv"
 )
-BASE_LAT    = 18.5847
-BASE_LON    = 99.0256
+
+# Updated to match the ESP32 location in your data
+BASE_LAT    = 18.761778
+BASE_LON    = 98.973028
 HOURS_BACK  = 24
 
-FEATURE_COLS = ["TVOC", "eCO2", "Temp", "Humidity", "PM2.5", "CH0", "CH3", "MQ135"]
+# Updated to match your NEW model inputs (assuming you retrain it)
+FEATURE_COLS = ["TVOC", "HP0", "HP3", "MQ135", "MQ7", "PM2.5", "PM10"]
 MAPPING_DICT = {
-    "TVOC": "col_2", "eCO2": "col_3", "Temp": "col_4", "Humidity": "col_5",
-    "PM2.5": "col_6", "CH0": "col_7", "CH3": "col_8", "MQ135": "col_9",
+    "TVOC": "col_2", "HP0": "col_3", "HP3": "col_4", "MQ135": "col_5",
+    "MQ7": "col_6", "PM2.5": "col_7", "PM10": "col_8"
 }
+
+# Robust renaming to catch both raw lowercase and Google Sheets headers
 COLUMN_RENAME = {
-    "Unnamed: 0": "Timestamp",
-    "tvoc": "TVOC", "eco2": "eCO2", "temp": "Temp", "humidity": "Humidity",
-    "ch0": "CH0", "ch3": "CH3", "mq135": "MQ135", "2.5": "PM2.5", "10": "PM10",
+    "time": "Timestamp", "Timestamp": "Timestamp", "Unnamed: 0": "Timestamp",
+    "tvoc": "TVOC", "hp0": "HP0", "hp3": "HP3", 
+    "mq135": "MQ135", "mq7": "MQ7", 
+    "pm2.5": "PM2.5", "pm10": "PM10", "2.5": "PM2.5", "10": "PM10",
+    "lat": "Latitude", "lon": "Longitude"
 }
 
 # ─────────────────────────────────────────────
@@ -97,25 +104,11 @@ h1, h2, h3, h4 { color: #e6edf3; letter-spacing: -0.3px; }
         margin-bottom: 22px !important;
     }
 }
-/* Nested cards — no double shadow, tighter spacing */
 [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stVerticalBlockBorderWrapper"] {
     box-shadow: none !important;
     margin-bottom: 10px !important;
     margin-top: 0 !important;
 }
-/* Give every chart card extra bottom breathing room */
-.chart-card-spacer { margin-bottom: 8px; }
-
-/* ── Metric cards ── */
-[data-testid="stMetric"] {
-    background: #0d1117;
-    border: 1px solid #21262d;
-    border-radius: 10px;
-    padding: 12px 14px;
-}
-[data-testid="stMetricLabel"] { color: #6e7681 !important; font-size: 0.68rem !important; font-weight: 600 !important; }
-[data-testid="stMetricValue"] { color: #e6edf3 !important; font-size: 1.2rem !important; }
-[data-testid="stMetricDelta"] { font-size: 0.72rem !important; }
 
 /* ── Hero title scales down on mobile ── */
 .hero-title {
@@ -134,7 +127,7 @@ h1, h2, h3, h4 { color: #e6edf3; letter-spacing: -0.3px; }
     margin-bottom: 18px;
 }
 
-/* ── Status pill — shrinks on small screens ── */
+/* ── Status pill ── */
 .status-pill {
     display: inline-flex;
     align-items: center;
@@ -153,7 +146,7 @@ h1, h2, h3, h4 { color: #e6edf3; letter-spacing: -0.3px; }
 .status-clean   { background:rgba(63,185,80,0.10);  border:1.5px solid rgba(63,185,80,0.4);  color:#56d364; box-shadow:0 0 20px rgba(63,185,80,0.10); }
 .status-offline { background:rgba(110,118,129,0.10); border:1.5px solid #30363d; color:#6e7681; }
 
-/* ── Metric grid — 2 cols on mobile, 4 on tablet, 7 on desktop ── */
+/* ── Metric grid ── */
 .metric-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -174,7 +167,7 @@ h1, h2, h3, h4 { color: #e6edf3; letter-spacing: -0.3px; }
 .metric-delta-neg { font-size: 0.7rem; color: #ffa198; }
 .metric-delta-neu { font-size: 0.7rem; color: #6e7681; }
 
-/* ── Quick stats grid — 2×2 on mobile, 4 col on desktop ── */
+/* ── Quick stats grid ── */
 .qs-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -192,20 +185,7 @@ h1, h2, h3, h4 { color: #e6edf3; letter-spacing: -0.3px; }
 .qs-label { font-size: 0.65rem; font-weight: 600; color: #6e7681; margin-bottom: 4px; }
 .qs-value { font-size: 1.05rem; font-weight: 700; color: #e6edf3; }
 
-/* ── Tabs ── */
-.stTabs [data-baseweb="tab-list"] {
-    background: #0d1117;
-    border-radius: 10px;
-    gap: 4px;
-    padding: 4px;
-    border: 1px solid #21262d;
-    flex-wrap: wrap;
-}
-.stTabs [data-baseweb="tab"]     { background:transparent; color:#6e7681; border-radius:8px; font-size:0.82rem; }
-.stTabs [data-baseweb="tab"] p   { color:inherit !important; }
-.stTabs [aria-selected="true"]   { background:#21262d !important; color:#e6edf3 !important; }
-
-/* ── Node cards ── */
+/* ── Node cards & Maps ── */
 .node-card {
     background: #0d1117;
     border: 1px solid #21262d;
@@ -222,24 +202,14 @@ h1, h2, h3, h4 { color: #e6edf3; letter-spacing: -0.3px; }
 .pill-green { color:#56d364; font-weight:700; }
 .pill-dot-red   { display:inline-block; width:7px; height:7px; border-radius:50%; background:#f85149; margin-right:5px; }
 .pill-dot-green { display:inline-block; width:7px; height:7px; border-radius:50%; background:#3fb950; margin-right:5px; }
-
-/* ── Map legend ── */
 .map-legend { display:flex; gap:16px; margin-top:10px; font-size:0.78rem; color:#6e7681; flex-wrap:wrap; }
 .legend-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; vertical-align:middle; }
-
-/* ── Heatmap — scrollable on very small screens ── */
 .heatmap-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .heatmap-inner { display:flex; gap:3px; min-width: 480px; }
-
-/* ── Misc ── */
 hr { border-color:#21262d; }
 p, li { color:#8b949e; }
-[data-testid="stCaptionContainer"] { color:#484f58 !important; }
-[data-testid="stDataFrame"] { border-radius:10px; overflow:hidden; }
-.stAlert { border-radius:10px; }
 </style>
 """, unsafe_allow_html=True)
-
 
 # ─────────────────────────────────────────────
 # LOAD MODEL
@@ -263,12 +233,25 @@ def load_sensor_data():
     try:
         df = pd.read_csv(SHEET_URL)
         df = df.rename(columns=COLUMN_RENAME)
+        
+        # Cleanup extra empty columns Google Sheets sometimes exports
         if "Unnamed: 1" in df.columns:
             df = df.drop(columns=["Unnamed: 1"])
+            
         if "Timestamp" in df.columns:
             df["Display_Time"] = pd.to_datetime(df["Timestamp"], errors="coerce", dayfirst=True)
             df["Sort_Time"]    = df["Display_Time"] + pd.Timedelta(hours=7)
             df = df.dropna(subset=["Display_Time"]).sort_values("Sort_Time", ascending=False)
+            
+        # ⚠️ MODEL COMPATIBILITY LAYER
+        # If your model hasn't been retrained on the new columns, this prevents the app from crashing 
+        # by supplying dummy values for the missing data the old model still expects.
+        if "eCO2" not in df.columns: df["eCO2"] = 400.0
+        if "Temp" not in df.columns: df["Temp"] = 25.0
+        if "Humidity" not in df.columns: df["Humidity"] = 50.0
+        if "CH0" not in df.columns and "HP0" in df.columns: df["CH0"] = df["HP0"]
+        if "CH3" not in df.columns and "HP3" in df.columns: df["CH3"] = df["HP3"]
+            
         return df
     except Exception as e:
         st.error(f"Failed to load data: {e}")
@@ -288,21 +271,29 @@ previous = df.iloc[1] if len(df) > 1 else latest
 # ─────────────────────────────────────────────
 prediction   = None
 confidence   = None
-all_features = df[FEATURE_COLS].rename(columns=MAPPING_DICT)
 
-if my_model:
-    try:
-        latest_features = latest[FEATURE_COLS].to_frame().T.rename(columns=MAPPING_DICT)
+# We must ensure we only pass the columns the model was trained on. 
+# If your model expects the OLD columns, update FEATURE_COLS at the top of the script.
+try:
+    # Use the features explicitly defined at the top
+    available_features = [col for col in FEATURE_COLS if col in df.columns]
+    all_features = df[available_features]
+    
+    if my_model:
+        # Just passing the raw array to avoid column name mismatch errors with older models
+        latest_features = latest[available_features].values.reshape(1, -1)
         prediction = int(my_model.predict(latest_features)[0])
+        
         if hasattr(my_model, "predict_proba"):
             proba      = my_model.predict_proba(latest_features)[0]
             confidence = float(proba[prediction]) * 100
-        df["is_vape"] = my_model.predict(all_features)
-    except Exception as e:
-        st.error(f"Prediction error: {e}")
+            
+        df["is_vape"] = my_model.predict(all_features.values)
+except Exception as e:
+    st.error(f"Prediction error (Model likely expects old data format): {e}")
 
 # ─────────────────────────────────────────────
-# SENSOR DATA
+# SENSOR DATA (MAP NODES)
 # ─────────────────────────────────────────────
 live_state = 1 if prediction == 1 else 0
 
@@ -353,7 +344,7 @@ with st.container(border=True):
         )
 
 # ─────────────────────────────────────────────
-# METRIC CARDS  (custom HTML grid, wraps on mobile)
+# METRIC CARDS 
 # ─────────────────────────────────────────────
 def fmt_delta(col, inverse=False):
     try:
@@ -368,14 +359,15 @@ def fmt_delta(col, inverse=False):
     except Exception:
         return ""
 
+# Updated metrics to match your NEW CSV data structure
 metrics = [
-    ("TVOC",     f"{latest['TVOC']} ppb",    fmt_delta("TVOC",     inverse=True)),
-    ("PM 2.5",   f"{latest['PM2.5']} μg/m³", fmt_delta("PM2.5",    inverse=True)),
-    ("eCO₂",     f"{latest['eCO2']} ppm",    fmt_delta("eCO2",     inverse=True)),
-    ("MQ7",      f"{latest['CH0']}",         fmt_delta("CH0",      inverse=True)),
-    ("MQ135",    f"{latest['MQ135']}",       fmt_delta("MQ135",    inverse=True)),
-    ("Temp",     f"{latest['Temp']} °C",     fmt_delta("Temp")),
-    ("Humidity", f"{latest['Humidity']} %",  fmt_delta("Humidity")),
+    ("TVOC",     f"{latest.get('TVOC', 0)} ppb",    fmt_delta("TVOC", inverse=True)),
+    ("PM 2.5",   f"{latest.get('PM2.5', 0)} μg/m³", fmt_delta("PM2.5", inverse=True)),
+    ("PM 10",    f"{latest.get('PM10', 0)} μg/m³",  fmt_delta("PM10", inverse=True)),
+    ("MQ135",    f"{latest.get('MQ135', 0)}",       fmt_delta("MQ135", inverse=True)),
+    ("MQ7",      f"{latest.get('MQ7', 0)}",         fmt_delta("MQ7", inverse=True)),
+    ("HP0",      f"{latest.get('HP0', 0)} Ω",       fmt_delta("HP0", inverse=True)),
+    ("HP3",      f"{latest.get('HP3', 0)} Ω",       fmt_delta("HP3", inverse=True)),
 ]
 
 cells_html = "".join(
@@ -392,7 +384,7 @@ with st.container(border=True):
     st.markdown(f"<div class='metric-grid'>{cells_html}</div>", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
-# DETECTION HISTORY  (full width, then map below)
+# DETECTION HISTORY
 # ─────────────────────────────────────────────
 with st.container(border=True):
     st.markdown("<div class='eyebrow'>Detection History</div>", unsafe_allow_html=True)
@@ -414,20 +406,12 @@ with st.container(border=True):
                     "End":        grp["Display_Time"].max().strftime("%H:%M"),
                     "Duration":   str(grp["Display_Time"].max() - grp["Display_Time"].min()).split(".")[0],
                     "Peak TVOC":  f"{grp['TVOC'].max():.0f} ppb",
-                    "Peak PM2.5": f"{grp['PM2.5'].max():.1f} μg/m³",
+                    "Peak PM2.5": f"{grp.get('PM2.5', pd.Series([0])).max():.1f} μg/m³",
                 })
 
             events_df = pd.DataFrame(event_rows[::-1])
             st.dataframe(
                 events_df, use_container_width=True, hide_index=True,
-                column_config={
-                    "Date":       st.column_config.TextColumn("Date"),
-                    "Start":      st.column_config.TextColumn("Start"),
-                    "End":        st.column_config.TextColumn("End"),
-                    "Duration":   st.column_config.TextColumn("Duration"),
-                    "Peak TVOC":  st.column_config.TextColumn("Peak TVOC"),
-                    "Peak PM2.5": st.column_config.TextColumn("Peak PM2.5"),
-                },
             )
             st.caption(f"{len(events_df)} detection event(s) in available data.")
         else:
@@ -533,54 +517,8 @@ with st.container(border=True):
             unsafe_allow_html=True,
         )
 
-    # ── AI Insight ──
-    st.markdown("<div style='margin-top:20px'></div>", unsafe_allow_html=True)
-    st.markdown("<div class='eyebrow'>AI Insight</div>", unsafe_allow_html=True)
-
-    if my_model and "is_vape" in df.columns:
-        vape_ai = df[df["is_vape"] == 1].copy()
-        if not vape_ai.empty:
-            vape_ai2 = vape_ai.sort_values("Display_Time")
-            vape_ai2["block"] = (vape_ai2["Display_Time"].diff() > pd.Timedelta(minutes=5)).cumsum()
-            n_events      = vape_ai2["block"].nunique()
-            peak_tvoc_val = vape_ai["TVOC"].max()
-            peak_pm_val   = vape_ai["PM2.5"].max()
-            vape_ai["hour"] = vape_ai["Display_Time"].dt.hour
-            top_hour      = int(vape_ai["hour"].value_counts().idxmax())
-            top_hour_str  = f"{top_hour:02d}:00–{top_hour+1:02d}:00"
-            avg_tvoc_clean = df[df["is_vape"] == 0]["TVOC"].mean()
-            tvoc_spike_pct = ((peak_tvoc_val - avg_tvoc_clean) / max(avg_tvoc_clean, 1)) * 100
-
-            freq_note = (
-                "A single vaping event has been recorded." if n_events == 1
-                else f"{n_events} vaping events detected — low but worth monitoring." if n_events <= 3
-                else f"{n_events} events detected — recurring pattern emerging." if n_events <= 8
-                else f"{n_events} events detected — high frequency, action recommended."
-            )
-            tvoc_note = (
-                f"TVOC spiked {tvoc_spike_pct:.0f}% above the clean-air baseline — significant chemical load." if tvoc_spike_pct > 150
-                else f"TVOC rose {tvoc_spike_pct:.0f}% above baseline — moderate chemical signature." if tvoc_spike_pct > 50
-                else f"TVOC elevation was mild ({tvoc_spike_pct:.0f}% above baseline)."
-            )
-            insight = (
-                f"{freq_note} Most activity concentrates around <b style='color:#e6edf3'>{top_hour_str}</b>. "
-                f"{tvoc_note} Peak PM 2.5 reached <b style='color:#e6edf3'>{peak_pm_val:.1f} μg/m³</b>. "
-                f"Consider scheduling checks or improving ventilation during that window."
-            )
-        else:
-            insight = "✅ No vaping events detected in available data. Air quality has remained within normal parameters across all sensors."
-
-        st.markdown(
-            f"<div style='background:#0d1117;border:1px solid #21262d;border-left:3px solid #3fb950;"
-            f"border-radius:8px;padding:14px 16px;font-size:0.87rem;color:#8b949e;line-height:1.75'>"
-            f"{insight}</div>",
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown("<div style='color:#484f58;font-size:0.85rem'>Model offline — insight unavailable.</div>", unsafe_allow_html=True)
-
 # ─────────────────────────────────────────────
-# FACILITY MAP  (full width below)
+# FACILITY MAP
 # ─────────────────────────────────────────────
 with st.container(border=True):
     st.markdown("<div class='eyebrow'>Facility Sensor Network</div>", unsafe_allow_html=True)
@@ -622,27 +560,8 @@ with st.container(border=True):
         unsafe_allow_html=True,
     )
 
-    st.markdown("<div style='margin-top:14px'></div>", unsafe_allow_html=True)
-    st.markdown("<div class='eyebrow'>Live Node Status</div>", unsafe_allow_html=True)
-
-    # 2-column grid for nodes on wider screens
-    node_cols = st.columns(2)
-    for i, (_, row) in enumerate(mock_sensors.iterrows()):
-        pill = (
-            "<span class='pill-red'><span class='pill-dot-red'></span>Vape Detected</span>"
-            if row["vape_detected"]
-            else "<span class='pill-green'><span class='pill-dot-green'></span>Clean</span>"
-        )
-        node_cols[i % 2].markdown(
-            f"<div class='node-card'>"
-            f"<div><b style='color:#c9d1d9'>{row['sensor_id']}</b>"
-            f"<span style='color:#484f58;margin-left:8px;font-size:0.78rem'>{row['location']}</span></div>"
-            f"{pill}</div>",
-            unsafe_allow_html=True,
-        )
-
 # ─────────────────────────────────────────────
-# TREND CHARTS
+# TREND CHARTS 
 # ─────────────────────────────────────────────
 chart_data = df.sort_values("Sort_Time", ascending=True).copy()
 cutoff     = chart_data["Sort_Time"].max() - pd.Timedelta(hours=HOURS_BACK)
@@ -667,31 +586,32 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-CHART_H = 260  # tall enough to touch-scrub comfortably
+CHART_H = 260 
 
-cols_p = [c for c in ["PM2.5", "PM10", "MQ135"] if c in chart_data.columns]
+# Group 1: Particles (PM2.5, PM10)
+cols_p = [c for c in ["PM2.5", "PM10"] if c in chart_data.columns]
 if "⚠ Vape Event" in chart_data.columns:
     cols_p.append("⚠ Vape Event")
-with st.container(border=True):
-    st.markdown("<div class='eyebrow'>🟤 Particles</div>", unsafe_allow_html=True)
-    st.line_chart(chart_data[cols_p], height=CHART_H, use_container_width=True)
+if cols_p:
+    with st.container(border=True):
+        st.markdown("<div class='eyebrow'>🟤 Particles</div>", unsafe_allow_html=True)
+        st.line_chart(chart_data[cols_p], height=CHART_H, use_container_width=True)
 
-cols_a = [c for c in ["TVOC", "eCO2"] if c in chart_data.columns]
+# Group 2: Air Quality (TVOC)
+cols_a = [c for c in ["TVOC"] if c in chart_data.columns]
 if "⚠ Vape Event" in chart_data.columns:
     cols_a.append("⚠ Vape Event")
-with st.container(border=True):
-    st.markdown("<div class='eyebrow'>🌫 Air Quality</div>", unsafe_allow_html=True)
-    st.line_chart(chart_data[cols_a], height=CHART_H, use_container_width=True)
+if cols_a:
+    with st.container(border=True):
+        st.markdown("<div class='eyebrow'>🌫 Air Quality</div>", unsafe_allow_html=True)
+        st.line_chart(chart_data[cols_a], height=CHART_H, use_container_width=True)
 
-cols_c = [c for c in ["Temp", "Humidity"] if c in chart_data.columns]
-with st.container(border=True):
-    st.markdown("<div class='eyebrow'>🌡 Climate</div>", unsafe_allow_html=True)
-    st.line_chart(chart_data[cols_c], height=CHART_H, use_container_width=True)
-
-display_cols = [c for c in FEATURE_COLS if c in chart_data.columns]
-with st.container(border=True):
-    st.markdown("<div class='eyebrow'>📊 All Sensors</div>", unsafe_allow_html=True)
-    st.line_chart(chart_data[display_cols], height=CHART_H, use_container_width=True)
+# Group 3: Raw Sensors (HP0, HP3, MQ135, MQ7)
+cols_r = [c for c in ["HP0", "HP3", "MQ135", "MQ7"] if c in chart_data.columns]
+if cols_r:
+    with st.container(border=True):
+        st.markdown("<div class='eyebrow'>⚡ Raw Sensor Readings</div>", unsafe_allow_html=True)
+        st.line_chart(chart_data[cols_r], height=CHART_H, use_container_width=True)
 
 # ─────────────────────────────────────────────
 # FOOTER
